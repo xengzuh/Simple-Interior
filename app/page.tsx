@@ -1,65 +1,115 @@
-import Image from "next/image";
+'use client';
+import dynamic from 'next/dynamic';
+import { useStore } from '@/store/useStore';
+import FloorPlanCanvas from '@/components/FloorPlanCanvas';
+import StyleSelector from '@/components/StyleSelector';
+import FurnitureCatalog from '@/components/FurnitureCatalog';
+
+// Lazy-load 3D scene (avoids SSR issues with Three.js)
+const Scene3D = dynamic(() => import('@/components/Scene3D'), { ssr: false });
 
 export default function Home() {
+  const { view, setView, rooms, selections, generate, furniture } = useStore();
+
+  const totalSelections = selections.reduce((s, sel) => s + sel.quantity, 0);
+  const canGenerate = rooms.length > 0 && totalSelections > 0;
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="h-screen flex flex-col bg-[#0f1117] overflow-hidden">
+      {/* ── Header ── */}
+      <header className="flex items-center justify-between px-6 py-3 border-b border-slate-800 shrink-0">
+        <div className="flex items-center gap-2">
+          <span className="text-2xl">🏠</span>
+          <div>
+            <h1 className="text-lg font-bold text-white leading-none">RoomCraft</h1>
+            <p className="text-xs text-slate-500 leading-none mt-0.5">3D Interior Designer</p>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+
+        {/* View switcher */}
+        <div className="flex items-center gap-1 bg-slate-800 rounded-xl p-1">
+          <button
+            onClick={() => setView('2d')}
+            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all
+              ${view === '2d'
+                ? 'bg-slate-600 text-white shadow'
+                : 'text-slate-400 hover:text-slate-200'}`}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            ✏️ Floor Plan
+          </button>
+          <button
+            onClick={() => setView('3d')}
+            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all
+              ${view === '3d'
+                ? 'bg-slate-600 text-white shadow'
+                : 'text-slate-400 hover:text-slate-200'}`}
           >
-            Documentation
-          </a>
+            🧊 3D View
+          </button>
         </div>
-      </main>
+
+        {/* Generate button */}
+        <button
+          onClick={generate}
+          disabled={!canGenerate}
+          className={`flex items-center gap-2 px-5 py-2 rounded-xl font-semibold text-sm transition-all
+            ${canGenerate
+              ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-400 hover:to-indigo-500 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 active:scale-95'
+              : 'bg-slate-800 text-slate-600 cursor-not-allowed'}`}
+        >
+          <span>✨</span>
+          <span>{furniture.length > 0 ? 'Re-generate' : 'Generate Design'}</span>
+        </button>
+      </header>
+
+      {/* ── Body ── */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left sidebar */}
+        <aside className="w-64 shrink-0 flex flex-col gap-4 p-4 border-r border-slate-800 overflow-y-auto">
+          <StyleSelector />
+          <div className="border-t border-slate-800" />
+          <FurnitureCatalog />
+        </aside>
+
+        {/* Main content */}
+        <main className="flex-1 p-4 overflow-hidden flex flex-col gap-4">
+          {/* Step hints */}
+          <div className="flex items-center gap-3 text-xs text-slate-500">
+            <Step n={1} done={rooms.length > 0} label="Draw rooms" />
+            <div className="flex-1 h-px bg-slate-800" />
+            <Step n={2} done={totalSelections > 0} label="Pick furniture" />
+            <div className="flex-1 h-px bg-slate-800" />
+            <Step n={3} done={false} label="Choose style" />
+            <div className="flex-1 h-px bg-slate-800" />
+            <Step n={4} done={furniture.length > 0} label="Generate!" />
+          </div>
+
+          {/* View area */}
+          <div className="flex-1 min-h-0">
+            {view === '2d' ? (
+              <div className="h-full overflow-auto">
+                <FloorPlanCanvas />
+              </div>
+            ) : (
+              <div className="h-full">
+                <Scene3D />
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}
+
+function Step({ n, done, label }: { n: number; done: boolean; label: string }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shrink-0
+        ${done ? 'bg-green-500 text-white' : 'bg-slate-800 text-slate-500 border border-slate-700'}`}>
+        {done ? '✓' : n}
+      </div>
+      <span className={done ? 'text-green-400' : 'text-slate-500'}>{label}</span>
     </div>
   );
 }
